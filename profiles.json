@@ -1,0 +1,29 @@
+{
+    "drakar": {
+        "name": "Drakar, o Mestiço Dracônico",
+        "hp": 40,
+        "spMax": 5,
+        "ca": 9,
+        "movimento": 4,
+        "ataque": "1d10",
+        "alcance": 3
+    },
+    "lira": {
+        "name": "Lira, a Emissária Celeste",
+        "hp": 30,
+        "spMax": 5,
+        "ca": 13,
+        "movimento": 4,
+        "ataque": "1d6 de dano ou 1d4 de cura",
+        "alcance": 2
+    },
+    "zephyr": {
+        "name": "Zephyr, o Agente do Caos",
+        "hp": 40,
+        "spMax": 5,
+        "ca": 10,
+        "movimento": 4,
+        "ataque": "1d6",
+        "alcance": 3
+    }
+}
