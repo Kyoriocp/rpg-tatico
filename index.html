@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ficha Tática RPG</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        .stat-box { border: 2px solid #333; padding: 15px; margin: 10px; border-radius: 10px; }
+        .btn-custom { font-size: 1.2em; margin: 5px; transition: transform 0.2s ease; }
+        .btn-custom:hover { transform: scale(1.1); }
+        .btn-custom:active { transform: scale(0.95); }
+        .setup-section { background: #f8f9fa; padding: 20px; border-radius: 10px; }
+        .condition-box { margin: 10px; padding: 10px; border-radius: 5px; transition: opacity 0.3s ease; }
+        .buff { background-color: #d1ecf1; border-color: #bee5eb; }
+        .debuff { background-color: #f8d7da; border-color: #f5c6cb; }
+        .icon { color: #007bff; font-size: 1.5em; text-align: center; }
+        .attribute-value { font-size: 1.2em; font-weight: bold; text-align: center; }
+        .columns-container { display: flex; gap: 20px; flex-wrap: wrap; }
+        .skill-card { display: flex; gap: 15px; align-items: center; padding: 10px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9; }
+        .skill-item { display: flex; align-items: center; gap: 5px; }
+        .skill-cooldown { font-size: 0.9em; color: #555; }
+        .skill-button { padding: 5px 10px; font-size: 0.9em; }
+        .resource-box { display: flex; justify-content: space-between; align-items: center; }
+        .resource-item { display: flex; align-items: center; gap: 10px; }
+        .attributes-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; }
+        .attribute-box { text-align: center; }
+        #eventLog { max-height: 200px; overflow-y: auto; background: #f9f9f9; border: 1px solid #ddd; padding: 10px; border-radius: 5px; }
+        /* Animação de Fade */
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        /* Tooltip */
+        .tooltip-inner { max-width: 200px; text-align: center; }
+        /* Scroll interno para listas longas */
+        .scrollable { max-height: 200px; overflow-y: auto; }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container mt-4">
+        <!-- Seção de Configuração Inicial -->
+        <div id="setup" class="setup-section">
+            <h3 class="text-center mb-4">Configurar Personagem</h3>
+            <div class="row">
+                <div class="col-12 col-md-6 mb-3">
+                    <label>Selecionar Perfil Pré-Definido:</label>
+                    <select id="profileSelect" class="form-control" onchange="loadProfile()">
+                        <option value="">-- Selecione um perfil --</option>
+                        <option value="drakar">Drakar, o Mestiço Dracônico</option>
+                        <option value="lira">Lira, a Emissária Celeste</option>
+                        <option value="zephyr">Zephyr, o Agente do Caos</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-6 mb-3">
+                    <label>Nome do Personagem:</label>
+                    <input type="text" id="characterName" class="form-control" placeholder="Digite o nome do personagem">
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12 col-md-6 mb-3">
+                    <label>HP Inicial:</label>
+                    <input type="number" id="initialHp" class="form-control" value="0">
+                </div>
+                <div class="col-12 col-md-6 mb-3">
+                    <label>SP Máximo:</label>
+                    <input type="number" id="initialSp" class="form-control" value="0">
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12 col-md-6 mb-3">
+                    <label>CA (Chance de Acerto):</label>
+                    <input type="number" id="initialCa" class="form-control" value="0">
+                </div>
+                <div class="col-12 col-md-6 mb-3">
+                    <label>Movimento (blocos):</label>
+                    <input type="number" id="initialMovimento" class="form-control" value="0">
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12 col-md-6 mb-3">
+                    <label>Ataque (ex: 1d8):</label>
+                    <input type="text" id="initialAtaque" class="form-control" value="0">
+                </div>
+                <div class="col-12 col-md-6 mb-3">
+                    <label>Alcance (blocos):</label>
+                    <input type="number" id="initialAlcance" class="form-control" value="0">
+                </div>
+            </div>
+            <button class="btn btn-primary w-100" onclick="initializeCharacter()">Criar Ficha</button>
+        </div>
+
+        <!-- Ficha do Personagem (inicialmente oculta) -->
+        <div id="characterSheet" style="display: none;">
+            <h2 class="text-center mb-4" id="characterTitle">Ficha do Personagem</h2>
+
+            <!-- Container de Colunas -->
+            <div class="columns-container row">
+                <!-- Coluna Esquerda: Atributos -->
+                <div class="column col-12 col-md-6">
+                    <div class="stat-box">
+                        <h3><i class="fas fa-heartbeat icon"></i> Recursos</h3>
+                        <div class="resource-box">
+                            <div class="resource-item">
+                                <i class="fas fa-heart icon"></i>
+                                <span>HP: <span id="hp">0</span>/<span id="hpMax">0</span></span>
+                                <button class="btn btn-success btn-sm btn-custom" onclick="updateStat('hp', 1)">+1</button>
+                                <button class="btn btn-danger btn-sm btn-custom" onclick="updateStat('hp', -1)">-1</button>
+                            </div>
+                            <div class="resource-item">
+                                <i class="fas fa-bolt icon"></i>
+                                <span>SP: <span id="sp">0</span>/<span id="spMax">0</span></span>
+                                <button class="btn btn-success btn-sm btn-custom" onclick="updateStat('sp', 1)">+1</button>
+                                <button class="btn btn-danger btn-sm btn-custom" onclick="updateStat('sp', -1)">-1</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stat-box">
+                        <h3><i class="fas fa-dice-d20 icon"></i> Atributos</h3>
+                        <div class="attributes-grid">
+                            <div class="attribute-box">
+                                <i class="fas fa-shield-alt icon"></i>
+                                <div class="attribute-value" id="ca">0</div>
+                            </div>
+                            <div class="attribute-box">
+                                <i class="fas fa-shoe-prints icon"></i>
+                                <div class="attribute-value" id="movimento">0</div>
+                            </div>
+                            <div class="attribute-box">
+                                <i class="fas fa-hand-fist icon"></i>
+                                <div class="attribute-value" id="ataque">0</div>
+                            </div>
+                            <div class="attribute-box">
+                                <i class="fas fa-bullseye icon"></i>
+                                <div class="attribute-value" id="alcance">0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Coluna Direita: Habilidades e Condições -->
+                <div class="column col-12 col-md-6">
+                    <div class="stat-box">
+                        <h3><i class="fas fa-spell-check icon"></i> Habilidades</h3>
+                        <div class="skill-card">
+                            <div class="skill-item">
+                                <strong>Skill 1</strong>
+                                <span class="skill-cooldown">[<span id="cooldown1">0</span>]</span>
+                                <select class="form-select form-select-sm" id="cooldownDropdown1" onchange="setCooldown(1)">
+                                    <option value="0">Sem Cooldown</option>
+                                    <option value="1">1 Turno</option>
+                                    <option value="2">2 Turnos</option>
+                                    <option value="3">3 Turnos</option>
+                                    <option value="4">4 Turnos</option>
+                                    <option value="5">5 Turnos</option>
+                                    <option value="6">6 Turnos</option>
+                                </select>
+                                <button class="btn btn-primary skill-button" onclick="useSkill(1)" data-bs-toggle="tooltip" title="Usar Habilidade">⚡</button>
+                            </div>
+                            <div class="skill-item">
+                                <strong>Skill 2</strong>
+                                <span class="skill-cooldown">[<span id="cooldown2">0</span>]</span>
+                                <select class="form-select form-select-sm" id="cooldownDropdown2" onchange="setCooldown(2)">
+                                    <option value="0">Sem Cooldown</option>
+                                    <option value="1">1 Turno</option>
+                                    <option value="2">2 Turnos</option>
+                                    <option value="3">3 Turnos</option>
+                                    <option value="4">4 Turnos</option>
+                                    <option value="5">5 Turnos</option>
+                                    <option value="6">6 Turnos</option>
+                                </select>
+                                <button class="btn btn-primary skill-button" onclick="useSkill(2)" data-bs-toggle="tooltip" title="Usar Habilidade">⚡</button>
+                            </div>
+                            <div class="skill-item">
+                                <strong>Skill 3</strong>
+                                <span class="skill-cooldown">[<span id="cooldown3">0</span>]</span>
+                                <select class="form-select form-select-sm" id="cooldownDropdown3" onchange="setCooldown(3)">
+                                    <option value="0">Sem Cooldown</option>
+                                    <option value="1">1 Turno</option>
+                                    <option value="2">2 Turnos</option>
+                                    <option value="3">3 Turnos</option>
+                                    <option value="4">4 Turnos</option>
+                                    <option value="5">5 Turnos</option>
+                                    <option value="6">6 Turnos</option>
+                                </select>
+                                <button class="btn btn-primary skill-button" onclick="useSkill(3)" data-bs-toggle="tooltip" title="Usar Habilidade">⚡</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stat-box">
+                        <h3><i class="fas fa-exclamation-triangle icon"></i> Condições</h3>
+                        <div class="mb-3">
+                            <label>Adicionar Condição:</label>
+                            <select id="conditionSelect" class="form-control">
+                                <option value="Agilidade">🏃‍♂️ Agilidade</option>
+                                <option value="Atordoado">😵 Atordoado</option>
+                                <option value="Benção Divina">✨ Benção Divina</option>
+                                <option value="Cegueira">🕶️ Cegueira</option>
+                                <option value="Desarmado">🚫 Desarmado</option>
+                                <option value="Destreza">⚡ Destreza</option>
+                                <option value="Escudo">🛡️ Escudo</option>
+                                <option value="Exaustão">😴 Exaustão</option>
+                                <option value="Hiperfoco">🎯 Hiperfoco</option>
+                                <option value="Imobilizado">🔒 Imobilizado</option>
+                                <option value="Lentidão">🐢 Lentidão</option>
+                                <option value="Maldição">💀 Maldição</option>
+                                <option value="Mente Afiada">🧠 Mente Afiada</option>
+                                <option value="Queimadura">🔥 Queimadura</option>
+                                <option value="Regeneração">🩹 Regeneração</option>
+                                <option value="Sangramento">🩸 Sangramento</option>
+                                <option value="Silêncio">🔇 Silêncio</option>
+                                <option value="Sorte do Guerreiro">🍀 Sorte do Guerreiro</option>
+                                <option value="Superforça">💪 Superforça</option>
+                                <option value="Vigor">🌟 Vigor</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label>Duração (turnos):</label>
+                            <input type="number" id="conditionDuration" class="form-control" min="1" value="1">
+                        </div>
+                        <button class="btn btn-primary w-100" onclick="addCondition()">Adicionar Condição</button>
+                        <div id="conditionsList" class="mt-3 scrollable"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Log -->
+            <div class="chat-log-column stat-box mt-4">
+                <h3><i class="fas fa-comment-dots icon"></i> Chat Log</h3>
+                <div id="eventLog" class="bg-light p-2 border rounded scrollable"></div>
+            </div>
+
+            <!-- Botões de Turno -->
+            <div class="text-center mt-4">
+                <button class="btn btn-success btn-lg" onclick="startTurn()">Iniciar Turno</button>
+                <button class="btn btn-warning btn-lg" onclick="endTurn()">Finalizar Turno</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let stats = {
+            name: "",
+            hp: 0,
+            hpMax: 0,
+            sp: 0,
+            spMax: 0,
+            ca: 0,
+            movimento: 0,
+            ataque: '0',
+            alcance: 0,
+            cooldowns: [0, 0, 0],
+            conditions: []
+        };
+
+        let turnCount = 0;
+
+        // Função para adicionar uma mensagem ao log
+        function logEvent(message) {
+            const eventLog = document.getElementById('eventLog');
+            const logEntry = document.createElement('div');
+            logEntry.textContent = message;
+            logEntry.classList.add('fade-in');
+            eventLog.prepend(logEntry);
+        }
+
+        // Carregar Perfil Pré-Definido
+        function loadProfile() {
+            const profileKey = document.getElementById('profileSelect').value;
+            if (profileKey && predefinedProfiles[profileKey]) {
+                const profile = predefinedProfiles[profileKey];
+                document.getElementById('characterName').value = profile.name;
+                document.getElementById('initialHp').value = profile.hp;
+                document.getElementById('initialSp').value = profile.spMax;
+                document.getElementById('initialCa').value = profile.ca;
+                document.getElementById('initialMovimento').value = profile.movimento;
+                document.getElementById('initialAtaque').value = profile.ataque;
+                document.getElementById('initialAlcance').value = profile.alcance;
+            }
+        }
+
+        // Inicializa a ficha com os valores definidos pelo usuário
+        function initializeCharacter() {
+            stats.name = document.getElementById('characterName').value || "Personagem Sem Nome";
+            stats.hp = parseInt(document.getElementById('initialHp').value) || 0;
+            stats.hpMax = stats.hp;
+            stats.sp = parseInt(document.getElementById('initialSp').value) || 0;
+            stats.spMax = parseInt(document.getElementById('initialSp').value) || 0;
+            stats.ca = parseInt(document.getElementById('initialCa').value) || 0;
+            stats.movimento = parseInt(document.getElementById('initialMovimento').value) || 0;
+            stats.ataque = document.getElementById('initialAtaque').value || '0';
+            stats.alcance = parseInt(document.getElementById('initialAlcance').value) || 0;
+
+            document.getElementById('characterTitle').textContent = stats.name;
+            document.getElementById('hp').textContent = stats.hp;
+            document.getElementById('hpMax').textContent = stats.hpMax;
+            document.getElementById('sp').textContent = stats.sp;
+            document.getElementById('spMax').textContent = stats.spMax;
+            document.getElementById('ca').textContent = stats.ca;
+            document.getElementById('movimento').textContent = stats.movimento;
+            document.getElementById('ataque').textContent = stats.ataque;
+            document.getElementById('alcance').textContent = stats.alcance;
+
+            document.getElementById('setup').style.display = 'none';
+            document.getElementById('characterSheet').style.display = 'block';
+
+            // Inicializa tooltips
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        }
+
+        // Atualiza HP/SP
+        function updateStat(stat, value) {
+            if (stat === 'hp') {
+                const oldHp = stats.hp;
+                stats[stat] = Math.max(0, Math.min(stats[stat] + value, stats.hpMax));
+                document.getElementById(stat).textContent = stats[stat];
+
+                if (value > 0) {
+                    logEvent(`[HP] Recebeu ${value} de cura. HP atual: ${stats.hp}`);
+                } else if (value < 0) {
+                    logEvent(`[HP] Perdeu ${Math.abs(value)} de HP. HP atual: ${stats.hp}`);
+                }
+            } else if (stat === 'sp') {
+                const oldSp = stats.sp;
+                stats[stat] = Math.max(0, Math.min(stats[stat] + value, stats.spMax));
+                document.getElementById(stat).textContent = stats[stat];
+
+                if (value > 0) {
+                    logEvent(`[SP] Recuperou ${value} de SP. SP atual: ${stats.sp}`);
+                } else if (value < 0) {
+                    logEvent(`[SP] Gastou ${Math.abs(value)} de SP. SP atual: ${stats.sp}`);
+                }
+
+                if (stats.sp === stats.spMax) {
+                    logEvent(`[SP] SP está no máximo (${stats.spMax}).`);
+                }
+            }
+        }
+
+        // Usar Habilidade
+        function useSkill(skillNumber) {
+            if (stats.cooldowns[skillNumber - 1] > 0) {
+                logEvent(`[Skill ${skillNumber}] Em cooldown por mais ${stats.cooldowns[skillNumber - 1]} turno(s).`);
+                return;
+            }
+            logEvent(`[Skill ${skillNumber}] Usada.`);
+        }
+
+        // Definir Cooldown via Dropdown
+        function setCooldown(skillNumber) {
+            const cooldown = parseInt(document.getElementById(`cooldownDropdown${skillNumber}`).value);
+            stats.cooldowns[skillNumber - 1] = cooldown;
+            updateCooldowns();
+            logEvent(`[Skill ${skillNumber}] Cooldown configurado para ${cooldown} turno(s).`);
+        }
+
+        // Atualizar Cooldowns
+        function updateCooldowns() {
+            for (let i = 0; i < 3; i++) {
+                document.getElementById(`cooldown${i + 1}`).textContent = stats.cooldowns[i];
+            }
+        }
+
+        // Adicionar Condição
+        function addCondition() {
+            const conditionName = document.getElementById('conditionSelect').value;
+            const duration = parseInt(document.getElementById('conditionDuration').value) || 1;
+            const isBuff = [
+                "Agilidade", "Benção Divina", "Destreza", "Escudo", "Hiperfoco", 
+                "Mente Afiada", "Regeneração", "Sorte do Guerreiro", "Superforça", "Vigor"
+            ].includes(conditionName);
+
+            stats.conditions.push({ name: conditionName, duration: duration, isBuff: isBuff });
+            renderConditions();
+            logEvent(`[Condição] Adicionada "${conditionName}" por ${duration} turno(s).`);
+        }
+
+        // Renderizar Condições
+        function renderConditions() {
+            const conditionsList = document.getElementById('conditionsList');
+            conditionsList.innerHTML = '';
+            stats.conditions.forEach((condition, index) => {
+                const conditionBox = document.createElement('div');
+                conditionBox.className = `condition-box fade-in ${condition.isBuff ? 'buff' : 'debuff'}`;
+                conditionBox.innerHTML = `
+                    <span>${getConditionIcon(condition.name)} ${condition.name}</span> 
+                    <span class="float-end">${condition.duration} turno(s)</span>
+                    <i class="fas fa-times-circle text-danger float-end mx-2" style="cursor: pointer;" onclick="removeCondition(${index})"></i>
+                `;
+                conditionsList.appendChild(conditionBox);
+            });
+        }
+
+        // Função para retornar ícones baseados no nome da condição
+        function getConditionIcon(conditionName) {
+            switch (conditionName) {
+                case "Agilidade": return "🏃‍♂️";
+                case "Atordoado": return "😵";
+                case "Benção Divina": return "✨";
+                case "Cegueira": return "🕶️";
+                case "Desarmado": return "🚫";
+                case "Destreza": return "⚡";
+                case "Escudo": return "🛡️";
+                case "Exaustão": return "😴";
+                case "Hiperfoco": return "🎯";
+                case "Imobilizado": return "🔒";
+                case "Lentidão": return "🐢";
+                case "Maldição": return "💀";
+                case "Mente Afiada": return "🧠";
+                case "Queimadura": return "🔥";
+                case "Regeneração": return "🩹";
+                case "Sangramento": return "🩸";
+                case "Silêncio": return "🔇";
+                case "Sorte do Guerreiro": return "🍀";
+                case "Superforça": return "💪";
+                case "Vigor": return "🌟";
+                default: return "";
+            }
+        }
+
+        // Remover Condição
+        function removeCondition(index) {
+            const removedCondition = stats.conditions[index].name;
+            stats.conditions.splice(index, 1);
+            renderConditions();
+            logEvent(`[Condição] "${removedCondition}" removida.`);
+        }
+
+        // Iniciar Turno
+        function startTurn() {
+            turnCount++;
+            stats.sp = Math.min(stats.sp + 1, stats.spMax);
+            document.getElementById('sp').textContent = stats.sp;
+
+            logEvent(`--- Turno ${turnCount} iniciado ---`);
+
+            stats.conditions.forEach(condition => {
+                switch (condition.name) {
+                    case "Regeneração":
+                        stats.hp = Math.min(stats.hp + 2, stats.hpMax);
+                        logEvent(`[Regeneração] Recuperou 2 HP. HP atual: ${stats.hp}`);
+                        break;
+                    case "Sangramento":
+                        stats.hp = Math.max(0, stats.hp - 2);
+                        logEvent(`[Sangramento] Perdeu 2 HP. HP atual: ${stats.hp}`);
+                        break;
+                    case "Queimadura":
+                        stats.hp = Math.max(0, stats.hp - 3);
+                        logEvent(`[Queimadura] Perdeu 3 HP. HP atual: ${stats.hp}`);
+                        break;
+                }
+            });
+
+            if (stats.sp === stats.spMax) {
+                logEvent(`[SP] SP está no máximo (${stats.spMax}).`);
+            }
+
+            document.getElementById('hp').textContent = stats.hp;
+        }
+
+        // Finalizar Turno
+        function endTurn() {
+            logEvent(`--- Turno ${turnCount} finalizado ---`);
+
+            stats.cooldowns = stats.cooldowns.map(cd => Math.max(0, cd - 1));
+            updateCooldowns();
+
+            stats.conditions = stats.conditions.map(condition => {
+                condition.duration = Math.max(0, condition.duration - 1);
+                return condition;
+            }).filter(condition => condition.duration > 0);
+
+            renderConditions();
+        }
+
+        // Perfis Pré-Definidos
+        const predefinedProfiles = {
+            drakar: {
+                name: "Drakar, o Mestiço Dracônico",
+                hp: 40,
+                hpMax: 40,
+                sp: 5,
+                spMax: 5,
+                ca: 9,
+                movimento: 4,
+                ataque: "1d10",
+                alcance: 3
+            },
+            lira: {
+                name: "Lira, a Emissária Celeste",
+                hp: 30,
+                hpMax: 30,
+                sp: 5,
+                spMax: 5,
+                ca: 13,
+                movimento: 4,
+                ataque: "1d6 de dano ou 1d4 de cura",
+                alcance: 2
+            },
+            zephyr: {
+                name: "Zephyr, o Agente do Caos",
+                hp: 40,
+                hpMax: 40,
+                sp: 5,
+                spMax: 5,
+                ca: 10,
+                movimento: 4,
+                ataque: "1d6",
+                alcance: 3
+            }
+        };
+    </script>
+</body>
+</html>
